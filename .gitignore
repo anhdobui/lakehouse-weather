@@ -1,0 +1,28 @@
+# Bỏ qua thư mục __pycache__ và file .pyc
+__pycache__/
+*.pyc
+
+# Bỏ qua file môi trường
+.env
+
+# Bỏ qua thư mục logs
+logs/
+
+# Bỏ qua các file liên quan đến Docker
+.dockerignore
+*.log
+
+# Bỏ qua thư mục volumes (nếu nó chứa dữ liệu tạm thời)
+volumes/
+
+# Bỏ qua các file ẩn của hệ điều hành
+.DS_Store
+Thumbs.db
+
+# Bỏ qua thư mục chứa cấu hình IDE/editor
+.vscode/
+.idea/
+
+# Bỏ qua dependencies cài đặt cục bộ
+.venv/
+env/

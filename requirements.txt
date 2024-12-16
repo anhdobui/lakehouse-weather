@@ -1,0 +1,32 @@
+
+#########################################REQUIREMENT_V1################################
+# boto3==1.35.55
+
+# python-dotenv==1.0.1
+
+# numpy>=1.24.0
+# pandas>=2.0.0
+# python-multipart>=0.0.6
+# beautifulsoup4>=4.12.3
+
+# # UI/Frontend
+# #streamlit>=1.39.0
+
+# # Utils
+# requests>=2.31.0
+# tqdm>=4.65.0
+# PyYAML>=6.0.0
+
+# # LangChain and its extensions
+# langchain==0.3.8
+# langchain-community==0.3.8
+# langchain-text-splitters==0.3.2
+
+# unstructured[pdf]
+# opencv-python-headless
+# polars
+
+
+###################################REQUIREMENT_V2#####################
+
+tldextract==5.1.3
