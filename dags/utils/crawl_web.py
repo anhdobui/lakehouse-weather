@@ -7,8 +7,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 import requests
 import urllib.parse
-import tldextract
-
+import hashlib
 load_dotenv()
 
 
@@ -49,15 +48,27 @@ def crawl_pdf(url: str) -> dict:
     except Exception as e:
         print(f"Error processing PDF {url}: {e}")
         return []
-
-def crawl_html(url: str) -> dict:
+def get_content_hash(content: str) -> str:
     """
-    Trích xuất nội dung và danh sách liên kết từ một trang HTML.
+    Tạo hash từ nội dung văn bản.
+    Args:
+        content: Văn bản cần hash.
+    Returns:
+        str: Hash của nội dung.
+    """
+    return hashlib.sha256(content.encode('utf-8')).hexdigest()
+def crawl_html(url: str, visited_hashes: set = None) -> dict:
+    """
+    Trích xuất nội dung và danh sách liên kết từ một trang HTML, sử dụng hashing để loại bỏ trùng lặp.
     Args:
         url (str): URL của trang HTML.
+        visited_hashes (set): Tập hợp các hash của nội dung đã xử lý.
     Returns:
         dict: Bao gồm nội dung trang và danh sách các liên kết.
     """
+    if visited_hashes is None:
+        visited_hashes = set()
+
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
         response = requests.get(url, headers=headers)
@@ -65,6 +76,13 @@ def crawl_html(url: str) -> dict:
 
         # Trích xuất nội dung văn bản từ HTML
         content = bs4_extractor(response.text)
+        content_hash = get_content_hash(content)
+
+        if content_hash in visited_hashes:
+            print(f"Nội dung đã tồn tại (hash: {content_hash}), bỏ qua {url}")
+            return {"page_content": "", "metadata": {}, "links": []}
+
+        visited_hashes.add(content_hash)  # Lưu hash của nội dung
         metadata = {"source": url, "content_type": "text/html"}
 
         # Tìm tất cả liên kết trong trang
@@ -76,27 +94,28 @@ def crawl_html(url: str) -> dict:
         ]
 
         print(f"Extracted {len(links)} links from {url}")
-
         return {"page_content": content, "metadata": metadata, "links": links}
 
     except Exception as e:
         print(f"Error processing HTML {url}: {e}")
         return {"page_content": "", "metadata": {}, "links": []}
 
-def crawl_web(url: str, depth: int = 1, visited_urls: set = None) -> list:
+def crawl_web(url: str, depth: int = 1, visited_urls: set = None, visited_hashes: set = None) -> list:
     """
-    Quét URL với khả năng đệ quy.
+    Quét URL với khả năng đệ quy, sử dụng hashing để loại bỏ nội dung trùng lặp.
     Args:
         url (str): URL cần quét.
         depth (int): Độ sâu tối đa.
         visited_urls (set): Tập hợp các URL đã quét.
+        visited_hashes (set): Tập hợp các hash của nội dung đã xử lý.
     Returns:
         list: Danh sách dữ liệu đã quét.
     """
     if visited_urls is None:
         visited_urls = set()
+    if visited_hashes is None:
+        visited_hashes = set()
 
-    # Nếu độ sâu bằng 0 hoặc URL đã được quét, dừng lại
     if depth == 0 or url in visited_urls:
         return []
 
@@ -107,33 +126,32 @@ def crawl_web(url: str, depth: int = 1, visited_urls: set = None) -> list:
         # Kiểm tra đuôi file trước
         if url.lower().endswith(".pdf"):
             print(f"Detected PDF content at {url}")
-            return crawl_pdf(url)             
+            return crawl_pdf(url)
+
         # Kiểm tra loại nội dung của URL
         response = requests.head(url, allow_redirects=True)
         content_type = response.headers.get("Content-Type", "").lower()
 
         if "application/pdf" in content_type:
             print(f"Detected PDF content: {url}")
-            return crawl_pdf(url)  
+            return crawl_pdf(url)
         elif "text/html" in content_type:
             print(f"Detected HTML content: {url}")
-            html_data = crawl_html(url)  # Trích xuất nội dung HTML
+            html_data = crawl_html(url, visited_hashes)
 
             if depth > 1:
                 all_data = [html_data]
                 for link in html_data["links"]:
                     if link not in visited_urls:
                         try:
-                            # Kiểm tra Content-Type của liên kết
                             head_response = requests.head(link, allow_redirects=True, timeout=10)
                             link_content_type = head_response.headers.get("Content-Type", "").lower()
 
                             if "application/pdf" in link_content_type:
-                                print(f"Detected PDF content at {link}")
                                 pdf_data = crawl_pdf(link)
                                 all_data.extend(pdf_data)
                             elif "text/html" in link_content_type:
-                                all_data.extend(crawl_web(link, depth=depth - 1, visited_urls=visited_urls))
+                                all_data.extend(crawl_web(link, depth=depth - 1, visited_urls=visited_urls, visited_hashes=visited_hashes))
                         except Exception as e:
                             print(f"Error processing link {link}: {e}")
 
@@ -147,8 +165,3 @@ def crawl_web(url: str, depth: int = 1, visited_urls: set = None) -> list:
     except Exception as e:
         print(f"Error crawling URL {url}: {e}")
         return []
-if __name__ == "__main__":
-    url_list = ["https://pola.rs/"]
-    depth = 2  # Quét sâu tối đa 2 cấp liên kết
-    data = crawl_web(url_list, depth=depth)
-    print(json.dumps(data, ensure_ascii=False, indent=4))

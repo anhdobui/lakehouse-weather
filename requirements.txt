@@ -30,3 +30,7 @@
 ###################################REQUIREMENT_V2#####################
 
 tldextract==5.1.3
+langchain-openai==0.2.12
+openai==1.58.1
+langchain-chroma>=0.0.1
+langchain-milvus>=0.1.5
